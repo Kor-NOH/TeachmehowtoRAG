@@ -1,22 +1,22 @@
 import os
 import pandas as pd
-from langchain.chat_models import ChatOpenAI
+from langchain_openai import ChatOpenAI
 from langchain.chains import RetrievalQA
-from langchain.vectorstores import FAISS
+from langchain_community.vectorstores import FAISS
 from langchain.docstore.document import Document as LangChainDocument
-from langchain.embeddings import HuggingFaceEmbeddings
+from langchain_huggingface import HuggingFaceEmbeddings
 from langchain.prompts import PromptTemplate
-from rank_bm25 import BM25
+from rank_bm25 import BM25Okapi
 import numpy as np
 
 # 환경 변수 설정
-os.environ["HUGGINGFACEHUB_API_TOKEN"] = "your_hugging_facehub_api_token"
-os.environ["OPENAI_API_KEY"] = "your_openai_api_key"
+os.environ["HUGGINGFACEHUB_API_TOKEN"] = "asdf"
+os.environ["OPENAI_API_KEY"] = "asdf"
 
 # CSV 파일 로드 및 문서로 변환
-csv_filepath = "path/to/your/data.csv"
+csv_filepath = "Rag_test_data.csv"
 df = pd.read_csv(csv_filepath)
-documents = [LangChainDocument(page_content=row['칼럼'], metadata={"source": i}) for i, row in df.iterrows() if pd.notnull(row['칼럼'])]
+documents = [LangChainDocument(page_content=row['이름'], metadata={"source": i}) for i, row in df.iterrows() if pd.notnull(row['이름'])]
 
 # 문서 벡터화 및 FAISS 벡터 저장소 생성
 embedding_function = HuggingFaceEmbeddings(model_name="jhgan/ko-sroberta-multitask")
@@ -24,11 +24,32 @@ vector_store = FAISS.from_documents(documents, embedding_function)
 
 # BM25 초기화
 corpus = [doc.page_content for doc in documents]
-tokenized_corpus = [doc.split() for doc in corpus]
-bm25 = BM25(tokenized_corpus)
+tokenized_corpus = [doc.split() for doc in corpus]  # 문서 내용을 토큰화
+bm25 = BM25Okapi(tokenized_corpus)
 
 # LLM 초기화
-lim = ChatOpenAI(model="gpt-4", temperature=0)
+lim = ChatOpenAI(model="gpt-3.5-turbo", temperature=0)
+
+# PromptTemplate 정의
+prompt_template = """주어진 컨텍스트를 바탕으로 질문에 답변해주세요. 컨텍스트에 관련 정보가 없다면, “제공된 정보로는 답변할 수 없습니다."라고 말씀해 주세요.
+
+컨텍스트:
+{context}
+
+질문: {question}
+답변:"""
+
+PROMPT = PromptTemplate(
+    template=prompt_template, input_variables=["context", "question"]
+)
+
+# RetrievalQA 파이프라인 초기화
+rag_pipeline = RetrievalQA.from_chain_type(
+    llm=lim,  # llm 인자에 lim을 전달
+    chain_type="stuff",
+    retriever=vector_store.as_retriever(search_kwargs={"k": 10}),
+    chain_type_kwargs={"prompt": PROMPT}  # PromptTemplate을 직접 전달
+)
 
 # 하이브리드 검색 함수
 def hybrid_search(query, k=15):
@@ -50,26 +71,6 @@ def hybrid_search(query, k=15):
             combined_docs.append(doc)
 
     return combined_docs[:k]
-
-# RAG 파이프라인 초기화
-prompt_template = """주어진 컨텍스트를 바탕으로 질문에 답변해주세요. 컨텍스트에 관련 정보가 없다면, “제공된 정보로는 답변할 수 없습니다."라고 말씀해 주세요.
-
-컨텍스트:
-{context}
-
-질문: {question}
-답변:"""
-
-PROMPT = PromptTemplate(
-    template=prompt_template, input_variables=["context", "question"]
-)
-
-rag_pipeline = RetrievalQA.from_chain_type(
-    lim=lim,
-    chain_type="stuff",
-    retriever=vector_store.as_retriever(search_kwargs={"k": 10}),
-    chain_type_kwargs={"prompt ": PROMPT}
-)
 
 # LLM을 사용한 질문 분리 및 처리
 def get_combined_answer(query):
