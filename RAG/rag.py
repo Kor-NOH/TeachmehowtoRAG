@@ -10,8 +10,8 @@ from rank_bm25 import BM25Okapi
 import numpy as np
 
 # 환경 변수 설정
-os.environ["HUGGINGFACEHUB_API_TOKEN"] = "asdf"
-os.environ["OPENAI_API_KEY"] = "asdf"
+os.environ["HUGGINGFACEHUB_API_TOKEN"] = "test"
+os.environ["OPENAI_API_KEY"] = "test"
 
 # CSV 파일 로드 및 문서로 변환
 csv_filepath = "Rag_test_data.csv"
@@ -96,7 +96,7 @@ def get_combined_answer(query):
     return final_answer
 
 # 사용 예시
-query = "question"
+query = "이름에 '윤'이 들어가는 이름이 몇개가있고 그 이름이 무엇인지 얘기해줘"
 answer = get_combined_answer(query)
 print("RAG 응답 생성 결과:")
 print(answer)
