@@ -16,7 +16,16 @@ os.environ["OPENAI_API_KEY"] = "test"
 # CSV 파일 로드 및 문서로 변환
 csv_filepath = "Rag_test_data.csv"
 df = pd.read_csv(csv_filepath)
-documents = [LangChainDocument(page_content=row['이름'], metadata={"source": i}) for i, row in df.iterrows() if pd.notnull(row['이름'])]
+# documents = [LangChainDocument(page_content=row['이름'], metadata={"source": i}) for i, row in df.iterrows() if pd.notnull(row['이름'])]
+
+# 이름, 전화번호, 주소를 함께 포함하는 문서 생성
+documents = [
+    LangChainDocument(
+        page_content=f"이름: {row['이름']}, 전화번호: {row['전화번호']}, 주소: {row['주소']}",
+        metadata={"source": i}
+    )
+    for i, row in df.iterrows() if pd.notnull(row['이름']) and pd.notnull(row['전화번호']) and pd.notnull(row['주소'])
+]
 
 # 문서 벡터화 및 FAISS 벡터 저장소 생성
 embedding_function = HuggingFaceEmbeddings(model_name="jhgan/ko-sroberta-multitask")
@@ -96,7 +105,7 @@ def get_combined_answer(query):
     return final_answer
 
 # 사용 예시
-query = "이름에 '윤'이 들어가는 이름이 몇개가있고 그 이름이 무엇인지 얘기해줘"
+query = "오지우의 집 주소가 뭔지 알려줘"
 answer = get_combined_answer(query)
 print("RAG 응답 생성 결과:")
 print(answer)
