@@ -19,12 +19,21 @@ df = pd.read_csv(csv_filepath)
 # documents = [LangChainDocument(page_content=row['이름'], metadata={"source": i}) for i, row in df.iterrows() if pd.notnull(row['이름'])]
 
 # 이름, 전화번호, 주소를 함께 포함하는 문서 생성
+# documents = [
+#     LangChainDocument(
+#         page_content=f"이름: {row['이름']}, 전화번호: {row['전화번호']}, 주소: {row['주소']}",
+#         metadata={"source": i}
+#     )
+#     for i, row in df.iterrows() if pd.notnull(row['이름']) and pd.notnull(row['전화번호']) and pd.notnull(row['주소'])
+# ]
+
+# 헤더를 기반으로 모든 정보를 포함하는 문서 생성
 documents = [
     LangChainDocument(
-        page_content=f"이름: {row['이름']}, 전화번호: {row['전화번호']}, 주소: {row['주소']}",
+        page_content=", ".join([f"{col}: {row[col]}" for col in df.columns if pd.notnull(row[col])]),
         metadata={"source": i}
     )
-    for i, row in df.iterrows() if pd.notnull(row['이름']) and pd.notnull(row['전화번호']) and pd.notnull(row['주소'])
+    for i, row in df.iterrows()
 ]
 
 # 문서 벡터화 및 FAISS 벡터 저장소 생성
