@@ -16,16 +16,6 @@ os.environ["OPENAI_API_KEY"] = "test"
 # CSV 파일 로드 및 문서로 변환
 csv_filepath = "Rag_test_data.csv"
 df = pd.read_csv(csv_filepath)
-# documents = [LangChainDocument(page_content=row['이름'], metadata={"source": i}) for i, row in df.iterrows() if pd.notnull(row['이름'])]
-
-# 이름, 전화번호, 주소를 함께 포함하는 문서 생성
-# documents = [
-#     LangChainDocument(
-#         page_content=f"이름: {row['이름']}, 전화번호: {row['전화번호']}, 주소: {row['주소']}",
-#         metadata={"source": i}
-#     )
-#     for i, row in df.iterrows() if pd.notnull(row['이름']) and pd.notnull(row['전화번호']) and pd.notnull(row['주소'])
-# ]
 
 # 헤더를 기반으로 모든 정보를 포함하는 문서 생성
 documents = [
@@ -92,29 +82,32 @@ def hybrid_search(query, k=15):
 
 # LLM을 사용한 질문 분리 및 처리
 def get_combined_answer(query):
-    # LLM을 사용해 질문을 분리하고 각각의 질문으로 처리
+    # 질문 분리
     prompt_for_splitting = f"질문: '{query}'\n위의 질문을 개별적인 질문으로 나눠주세요."
     split_response = lim.invoke(prompt_for_splitting)
-
-    sub_queries = split_response.content.split('\n')
+    sub_queries = [q.strip() for q in split_response.content.split('\n') if q.strip()]
 
     answers = []
 
     for sub_query in sub_queries:
-        if sub_query.strip():
-            # 각 질문에 대해 독립적으로 검색 및 요약 수행
-            docs = hybrid_search(sub_query, k=15)
-            summarized_content = "".join([doc.page_content for doc in docs])
-            
+        docs = hybrid_search(sub_query, k=15)
+        # 중복 제거된 문서 내용 확인
+        summarized_content = "\n".join(set(doc.page_content for doc in docs))
+
+        # 컨텍스트와 질문 매칭
+        if summarized_content.strip():
             result = rag_pipeline.invoke({"query": sub_query, "context": summarized_content})
-            answers.append(result['result'])
+            answers.append(f"질문: {sub_query}\n답변: {result['result']}")
+        else:
+            answers.append(f"질문: {sub_query}\n답변: 제공된 정보로는 답변할 수 없습니다.")
 
-    final_answer = "\n".join(answers)
-
+    # 최종 응답 결합
+    final_answer = "\n\n".join(answers)
     return final_answer
 
+
 # 사용 예시
-query = "오지우의 집 주소가 뭔지 알려줘"
+query = "오지우에 관련한 정보를 내게 알려줘"
 answer = get_combined_answer(query)
 print("RAG 응답 생성 결과:")
 print(answer)
