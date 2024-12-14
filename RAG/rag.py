@@ -107,7 +107,7 @@ def get_combined_answer(query):
 
 
 # 사용 예시
-query = "오지우의 전화번호를 알려줘"
+query = "오지우의 집 주소가 뭔지 알려줘"
 answer = get_combined_answer(query)
 print("RAG 응답 생성 결과:")
 print(answer)
